@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SCHOLAR
+  ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  scholarProfile  ScholarProfile?
+  reviewedProfiles ScholarProfile[] @relation("ReviewedBy")
+  questions       Question[]
+  answers         Answer[]
+  bookmarks       Bookmark[]
+  loginAttempts   LoginAttempt[]
+  posts           Post[]
+  postLikes       PostLike[]
+  articles        Article[]
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Post {
+  id        String     @id @default(cuid())
+  body      String
+  images    String[]   @default([])
+  createdAt DateTime   @default(now())
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     PostLike[]
+
+  @@index([createdAt])
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  excerpt     String
+  body        String
+  status      ArticleStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  publishedAt DateTime?
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([status, publishedAt])
+  @@index([authorId, updatedAt])
+}
+
+model ScholarProfile {
+  id              String            @id @default(cuid())
+  userId          String            @unique
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qualification   String
+  specialization  String
+  institution     String
+  experienceYears Int
+  city            String?
+  bio             String
+  status          ApplicationStatus @default(PENDING)
+  rejectionReason String?
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewedBy      User?             @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  loginAttempts LoginAttempt[]
+
+  @@index([status])
+}
+
+model LoginAttempt {
+  id               String          @id @default(cuid())
+  email            String
+  success          Boolean
+  reason           String?
+  ip               String?
+  userAgent        String?
+  createdAt        DateTime        @default(now())
+  userId           String?
+  user             User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  scholarProfileId String?
+  scholarProfile   ScholarProfile? @relation(fields: [scholarProfileId], references: [id], onDelete: Cascade)
+
+  @@index([scholarProfileId, createdAt])
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  slug      String     @unique
+  questions Question[]
+}
+
+model Question {
+  id         String    @id @default(cuid())
+  title      String
+  body       String
+  createdAt  DateTime  @default(now())
+  askedById  String
+  askedBy    User      @relation(fields: [askedById], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  answers    Answer[]
+
+  @@index([createdAt])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  body       String
+  reference  String
+  createdAt  DateTime @default(now())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  scholarId  String
+  scholar    User     @relation(fields: [scholarId], references: [id], onDelete: Cascade)
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  kind      String
+  reference String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, reference])
+}
