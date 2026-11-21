@@ -1,10 +1,13 @@
 import { Router } from "express";
-import { Prisma } from "@prisma/client";
+import { Prisma, QuestionStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler, HttpError } from "../errors";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { answerLimiter, askLimiter } from "../middleware/rateLimit";
+import { convertToUrdu } from "../utils/translateToUrdu";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { franc } = require("franc");
 
 const router = Router();
 const PAGE_SIZE = 10;
@@ -28,6 +31,9 @@ const toDto = (q: Row) => ({
   id: q.id,
   title: q.title,
   body: q.body,
+  originalBody: q.originalBody,
+  detectedLanguage: q.detectedLanguage,
+  status: q.status,
   createdAt: q.createdAt,
   askedBy: q.askedBy.name.split(" ")[0],
   answers: q.answers.map((a) => ({
@@ -57,14 +63,21 @@ const answerSchema = z.object({
     .max(500),
 });
 
+const statusUpdateSchema = z.object({
+  status: z.nativeEnum(QuestionStatus, {
+    invalid_type_error: "Invalid status. Must be one of: SUBMITTED, UNDER_REVIEW, ANSWERED, NEEDS_CLARIFICATION",
+  }),
+});
+
 // Public: list questions with their answers.
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    const { q, filter, page } = z
+    const { q, filter, status, page } = z
       .object({
         q: z.string().trim().max(80).optional(),
         filter: z.enum(["all", "answered", "unanswered"]).default("all"),
+        status: z.enum(["SUBMITTED", "UNDER_REVIEW", "ANSWERED", "NEEDS_CLARIFICATION"]).optional(),
         page: z.coerce.number().int().min(1).max(1000).default(1),
       })
       .parse(req.query);
@@ -72,6 +85,7 @@ router.get(
     const where: Prisma.QuestionWhereInput = {
       ...(filter === "answered" ? { answers: { some: {} } } : {}),
       ...(filter === "unanswered" ? { answers: { none: {} } } : {}),
+      ...(status ? { status } : {}),
       ...(q
         ? {
             OR: [
@@ -100,8 +114,16 @@ router.post(
   askLimiter,
   asyncHandler(async (req, res) => {
     const data = askSchema.parse(req.body);
+    const urduText = await convertToUrdu(data.body);
+    const detected = franc(data.body, { minLength: 3 }) || undefined;
     const created = await prisma.question.create({
-      data: { title: data.title, body: data.body, askedById: req.user!.id },
+      data: {
+        title: data.title,
+        body: urduText,
+        originalBody: data.body,
+        detectedLanguage: detected,
+        askedById: req.user!.id,
+      },
       include,
     });
     res.status(201).json({ question: toDto(created) });
@@ -133,6 +155,27 @@ router.post(
     });
     const full = await prisma.question.findUniqueOrThrow({ where: { id: question.id }, include });
     res.status(201).json({ question: toDto(full) });
+  }),
+);
+
+
+// Admin or Scholar can update a question's status.
+router.patch(
+  "/:id/status",
+  requireAuth,
+  requireRole("ADMIN", "SCHOLAR"),
+  asyncHandler(async (req, res) => {
+    const { status } = statusUpdateSchema.parse(req.body);
+
+    const question = await prisma.question.findUnique({ where: { id: req.params.id } });
+    if (!question) throw new HttpError(404, "Question not found");
+
+    const updated = await prisma.question.update({
+      where: { id: req.params.id },
+      data: { status },
+      include,
+    });
+    res.json({ question: toDto(updated) });
   }),
 );
 

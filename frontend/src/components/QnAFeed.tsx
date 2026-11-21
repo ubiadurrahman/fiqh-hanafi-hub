@@ -6,7 +6,7 @@ import Field, { describe } from "./Field";
 import { EmptyState, ErrorState, Skeleton } from "./ui";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { api, ApiError, QAQuestion } from "../lib/api";
+import { api, ApiError, QAQuestion, QuestionStatus } from "../lib/api";
 
 type Filter = "all" | "answered" | "unanswered";
 const filters: { key: Filter; label: string }[] = [
@@ -14,6 +14,20 @@ const filters: { key: Filter; label: string }[] = [
   { key: "answered", label: "Answered" },
   { key: "unanswered", label: "Awaiting answer" },
 ];
+
+const statusFilters: { key: QuestionStatus; label: string }[] = [
+  { key: "SUBMITTED", label: "Submitted" },
+  { key: "UNDER_REVIEW", label: "Under Review" },
+  { key: "ANSWERED", label: "Answered" },
+  { key: "NEEDS_CLARIFICATION", label: "Needs Clarification" },
+];
+
+const statusBadge: Record<QuestionStatus, string> = {
+  SUBMITTED: "bg-stone-100 text-stone-800 dark:bg-stone-700/30 dark:text-stone-200",
+  UNDER_REVIEW: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
+  ANSWERED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+  NEEDS_CLARIFICATION: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300",
+};
 
 const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { dateStyle: "medium" });
 const fieldErrs = (e: ApiError) =>
@@ -29,6 +43,7 @@ export default function QnAFeed() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [statusFilter, setStatusFilter] = useState<QuestionStatus | "all">("all");
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -42,9 +57,10 @@ export default function QnAFeed() {
     (p: number) => {
       const params = new URLSearchParams({ page: String(p), filter });
       if (debounced) params.set("q", debounced);
+      if (statusFilter !== "all") params.set("status", statusFilter);
       return api.get<{ questions: QAQuestion[]; hasMore: boolean }>(`/questions?${params}`);
     },
-    [filter, debounced],
+    [filter, statusFilter, debounced],
   );
 
   useEffect(() => {
@@ -106,6 +122,28 @@ export default function QnAFeed() {
             </button>
           ))}
         </div>
+        {user ? (
+          <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-2">
+            <button
+              key="status-all"
+              onClick={() => setStatusFilter("all")}
+              aria-pressed={statusFilter === "all"}
+              className={`btn !min-h-[40px] !px-4 text-xs ${statusFilter === "all" ? "btn-primary" : "btn-outline"}`}
+            >
+              All statuses
+            </button>
+            {statusFilters.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setStatusFilter(s.key)}
+                aria-pressed={statusFilter === s.key}
+                className={`btn !min-h-[40px] !px-4 text-xs ${statusFilter === s.key ? "btn-primary" : "btn-outline"}`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="relative ml-auto w-full sm:w-72">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden />
           <input
@@ -248,7 +286,20 @@ function AskCard({ onAsked }: { onAsked: (q: QAQuestion) => void }) {
 
 function QuestionCard({ question: x, onUpdated }: { question: QAQuestion; onUpdated: (q: QAQuestion) => void }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [writing, setWriting] = useState(false);
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      const r = await api.patch<{ question: QAQuestion }>(`/questions/${x.id}/status`, {
+        status: newStatus,
+      });
+      toast("success", `Status updated to ${r.question.status.replace(/_/g, " ")}`);
+      onUpdated(r.question);
+    } catch (err) {
+      toast("error", err instanceof ApiError ? err.message : "Failed to update status");
+    }
+  };
 
   return (
     <motion.article
@@ -267,6 +318,11 @@ function QuestionCard({ question: x, onUpdated }: { question: QAQuestion; onUpda
           }`}
         >
           {x.answers.length ? `${x.answers.length} answer${x.answers.length > 1 ? "s" : ""}` : "Awaiting answer"}
+        </span>
+        <span
+          className={`badge text-xs font-medium ${statusBadge[x.status]}`}
+        >
+          {x.status.replace(/_/g, " ")}
         </span>
         <span className="text-xs text-stone-500 dark:text-stone-400">
           Asked by {x.askedBy} · {fmt(x.createdAt)}
@@ -318,6 +374,24 @@ function QuestionCard({ question: x, onUpdated }: { question: QAQuestion; onUpda
               }}
             />
           )}
+        </div>
+      )}
+      {(user?.role === "ADMIN" || user?.role === "SCHOLAR") && (
+        <div className="mt-4">
+          <label className="text-xs font-medium text-stone-500 dark:text-stone-400 block mb-1">
+            Change status
+          </label>
+          <select
+            value={x.status}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className="input input-sm w-48"
+          >
+            {statusFilters.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
         </div>
       )}
     </motion.article>

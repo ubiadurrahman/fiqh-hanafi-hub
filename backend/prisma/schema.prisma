@@ -44,6 +44,13 @@ enum ArticleStatus {
   PUBLISHED
 }
 
+enum QuestionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ANSWERED
+  NEEDS_CLARIFICATION
+}
+
 model Post {
   id        String     @id @default(cuid())
   body      String
@@ -130,17 +137,21 @@ model Category {
 }
 
 model Question {
-  id         String    @id @default(cuid())
-  title      String
-  body       String
-  createdAt  DateTime  @default(now())
-  askedById  String
-  askedBy    User      @relation(fields: [askedById], references: [id], onDelete: Cascade)
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  answers    Answer[]
+  id            String             @id @default(cuid())
+  title         String
+  body          String
+  originalBody  String
+  detectedLanguage String?
+  status        QuestionStatus     @default(SUBMITTED)
+  createdAt     DateTime           @default(now())
+  askedById     String
+  askedBy       User               @relation(fields: [askedById], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  answers       Answer[]
 
   @@index([createdAt])
+  @@index([status])
 }
 
 model Answer {

@@ -115,10 +115,15 @@ export interface QAAnswer {
   createdAt: string;
   scholar: { profileId: string | null; name: string; specialization: string | null };
 }
+export type QuestionStatus = "SUBMITTED" | "UNDER_REVIEW" | "ANSWERED" | "NEEDS_CLARIFICATION";
+
 export interface QAQuestion {
   id: string;
   title: string;
   body: string;
+  originalBody: string;
+  detectedLanguage: string | null;
+  status: QuestionStatus;
   createdAt: string;
   askedBy: string;
   answers: QAAnswer[];

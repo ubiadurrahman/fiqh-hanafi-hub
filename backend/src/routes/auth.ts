@@ -28,10 +28,27 @@ const registerSchema = z.object({ name, email, password });
 
 const scholarSchema = registerSchema.extend({
   qualification: z.string().trim().min(3).max(150),
-  specialization: z.string().trim().min(2).max(100),
+  specialization: z
+    .string()
+    .trim()
+    .min(2)
+    .max(100)
+    .refine(
+      (v) => [
+        "Hanafi Fiqh",
+        "Hadith",
+        "Tafsir",
+        "Tafseer",
+        "Quran Recitation (Tajweed)",
+        "Aqeedah",
+        "Arabic Language",
+      ].includes(v),
+      "Select a valid specialization from the list",
+    ),
   institution: z.string().trim().min(2).max(150),
   experienceYears: z.coerce.number().int().min(0).max(80),
-  city: z.string().trim().min(2).max(80).optional().or(z.literal("").transform(() => undefined)),
+  city: z
+    .preprocess((v) => (v === "" ? undefined : v), z.string().trim().min(2).max(80).optional().nullish()),
   bio: z.string().trim().min(50, "Write at least 50 characters").max(1000),
 });
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Loader2, ShieldAlert, X, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, ShieldAlert, Trash2, X, XCircle } from "lucide-react";
 import { PageHeader, Skeleton, ErrorState, EmptyState } from "../components/ui";
 import { api, ApiError, AppStatus, LoginAttempt, ScholarApplication } from "../lib/api";
 import { useToast } from "../context/ToastContext";
@@ -114,6 +114,7 @@ function ReviewPanel({ id, onClose, onChanged }: { id: string; onClose: () => vo
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState("");
 
@@ -157,6 +158,19 @@ function ReviewPanel({ id, onClose, onChanged }: { id: string; onClose: () => vo
     } catch (e) {
       toast("error", e instanceof ApiError ? e.message : "Could not reject");
       setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/admin/scholars/${id}`);
+      toast("info", "Scholar application deleted.");
+      onClose();
+      onChanged();
+    } catch (e) {
+      toast("error", e instanceof ApiError ? e.message : "Could not delete");
+      setDeleting(false);
     }
   };
 
@@ -270,6 +284,22 @@ function ReviewPanel({ id, onClose, onChanged }: { id: string; onClose: () => vo
                     </button>
                   </div>
                 </>
+              ) : deleting ? (
+                <div className="space-y-3 border-t border-stone-200 pt-4 dark:border-white/10">
+                  <h4 className="label">Confirm delete</h4>
+                  <p className="text-sm text-stone-600 dark:text-stone-400">
+                    Delete "{s.name}" application? This cannot be undone.
+                  </p>
+                  <div className="flex gap-2">
+                    <button className="btn btn-outline flex-1" onClick={() => setDeleting(false)} disabled={deleting}>
+                      Cancel
+                    </button>
+                    <button className="btn btn-danger flex-1" onClick={remove} disabled={deleting}>
+                      {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Confirm delete
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="flex gap-2">
                   {s.status !== "REJECTED" && (
@@ -280,6 +310,16 @@ function ReviewPanel({ id, onClose, onChanged }: { id: string; onClose: () => vo
                   {s.status !== "APPROVED" && (
                     <button className="btn btn-primary flex-1" onClick={approve} disabled={busy}>
                       {busy && <Loader2 className="h-4 w-4 animate-spin" />} Approve
+                    </button>
+                  )}
+                  {(s.status === "PENDING" || s.status === "REJECTED" || s.status === "APPROVED") && (
+                    <button
+                      className="btn btn-danger flex-1"
+                      onClick={() => setDeleting(true)}
+                      disabled={deleting}
+                    >
+                      {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Delete
                     </button>
                   )}
                 </div>

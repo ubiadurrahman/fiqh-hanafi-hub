@@ -132,4 +132,23 @@ router.patch(
   }),
 );
 
+// Delete a scholar application (and the associated user account).
+// Admins can intentionally remove any scholar — even APPROVED ones — if needed.
+router.delete(
+  "/scholars/:id",
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.scholarProfile.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, status: true, userId: true },
+    });
+    if (!existing) throw new HttpError(404, "Scholar application not found");
+    await prisma.$transaction(async (tx) => {
+      await tx.loginAttempt.deleteMany({ where: { scholarProfileId: existing.id } });
+      await tx.scholarProfile.delete({ where: { id: existing.id } });
+      await tx.user.delete({ where: { id: existing.userId } });
+    });
+    res.json({ message: "Scholar removed successfully" });
+  }),
+);
+
 export default router;

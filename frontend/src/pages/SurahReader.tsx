@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Languages, Minus, Pause, Play, Plus, SkipBack, SkipForward } from "lucide-react";
-import { Ayah, Surah, ayahAudioUrl, fetchSurah, lastRead, reciters } from "../lib/quran";
+import {
+  Ayah,
+  Surah,
+  ayahAudioUrl,
+  fetchSurah,
+  isValidReciter,
+  lastRead,
+  reciters,
+} from "../lib/quran";
 import { ErrorState, Skeleton } from "../components/ui";
 import { useToast } from "../context/ToastContext";
 
@@ -20,7 +28,10 @@ export default function SurahReader() {
 
   const [showTranslation, setShowTranslation] = useState(true);
   const [fontSize, setFontSize] = useState(() => Number(localStorage.getItem("fh_qfont")) || 34);
-  const [reciter, setReciter] = useState(() => localStorage.getItem("fh_reciter") || reciters[0].id);
+  const [reciter, setReciter] = useState(() => {
+    const stored = localStorage.getItem("fh_reciter");
+    return stored && isValidReciter(stored) ? stored : reciters[0].id;
+  });
   const [speed, setSpeed] = useState(1);
 
   const [current, setCurrent] = useState<number | null>(null);

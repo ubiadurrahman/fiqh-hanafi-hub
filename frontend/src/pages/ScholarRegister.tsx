@@ -121,12 +121,28 @@ export default function ScholarRegister() {
           </Field>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field id="specialization" label="Specialization" error={errors.specialization}>
-              <input id="specialization" list="specs" className="input" value={f.specialization} onChange={set("specialization")} {...describe("specialization", errors.specialization)} />
-              <datalist id="specs">
-                {["Hanafi Fiqh", "Hadith", "Tafsir", "Quran Recitation (Tajweed)", "Aqeedah", "Arabic Language"].map((s) => (
-                  <option key={s} value={s} />
+              <select
+                id="specialization"
+                className="input"
+                value={f.specialization}
+                onChange={set("specialization")}
+                {...describe("specialization", errors.specialization)}
+              >
+                <option value="">Select specialization</option>
+                {[
+                  "Hanafi Fiqh",
+                  "Hadith",
+                  "Tafsir",
+                  "Tafseer",
+                  "Quran Recitation (Tajweed)",
+                  "Aqeedah",
+                  "Arabic Language",
+                ].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </Field>
             <Field id="experienceYears" label="Years of experience" error={errors.experienceYears}>
               <input id="experienceYears" type="number" min={0} max={80} inputMode="numeric" className="input" value={f.experienceYears} onChange={set("experienceYears")} {...describe("experienceYears", errors.experienceYears)} />

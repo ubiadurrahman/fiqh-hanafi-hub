@@ -19,16 +19,37 @@ export interface Reciter {
   name: string;
 }
 
+/*
+ * Verified reciters. Audio is served by cdn.islamic.network.
+ * NOTE: "ar.abdurrahmaansudais" (Abdurrahmaan / Abdul-Rahman As-Sudais) was
+ * REMOVED because its CDN URL returns HTTP 403 Forbidden (audio will not play).
+ * No working "abdurrahman" reciter id was found on this CDN. To add a reciter,
+ * first verify its URL: https://cdn.islamic.network/quran/audio/128/<id>/1.mp3
+ * returns HTTP 200 audio/mpeg, then add it here.
+ */
 export const reciters: Reciter[] = [
   { id: "ar.alafasy", name: "Mishary Alafasy" },
-  { id: "ar.abdurrahmaansudais", name: "Abdurrahmaan As-Sudais" },
+  { id: "ar.hudhaify", name: "Hudhaify" },
   { id: "ar.husary", name: "Mahmoud Khalil Al-Husary" },
   { id: "ar.minshawi", name: "Mohamed Siddiq Al-Minshawi" },
 ];
 
+export const validReciterIds: string[] = reciters.map((r) => r.id);
+
+export function isValidReciter(id: string): boolean {
+  return validReciterIds.includes(id);
+}
+
 const API = "https://api.alquran.cloud/v1";
-export const ayahAudioUrl = (reciter: string, globalNumber: number) =>
-  `https://cdn.islamic.network/quran/audio/128/${reciter}/${globalNumber}.mp3`;
+export const ayahAudioUrl = (reciter: string, globalNumber: number) => {
+  if (!isValidReciter(reciter)) {
+    throw new Error(`Unknown reciter id: ${reciter}`);
+  }
+  if (!Number.isInteger(globalNumber) || globalNumber < 1 || globalNumber > 6236) {
+    throw new Error(`Invalid global ayah number: ${globalNumber}`);
+  }
+  return `https://cdn.islamic.network/quran/audio/128/${reciter}/${globalNumber}.mp3`;
+};
 
 export async function fetchSurahs(): Promise<Surah[]> {
   const cached = sessionStorage.getItem("fh_surahs");
