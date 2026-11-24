@@ -114,11 +114,12 @@ router.post(
   askLimiter,
   asyncHandler(async (req, res) => {
     const data = askSchema.parse(req.body);
+    const urduTitle = await convertToUrdu(data.title);
     const urduText = await convertToUrdu(data.body);
     const detected = franc(data.body, { minLength: 3 }) || undefined;
     const created = await prisma.question.create({
       data: {
-        title: data.title,
+        title: urduTitle,
         body: urduText,
         originalBody: data.body,
         detectedLanguage: detected,

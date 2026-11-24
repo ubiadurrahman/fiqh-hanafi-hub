@@ -258,6 +258,7 @@ describe("POST /api/questions (with translation)", () => {
       });
     expect(res.status).toBe(201);
     expect(res.body.question.originalBody).toBe("What is the ruling on missing a prayer intentionally?");
+    expect(res.body.question.title).toBeDefined();
     expect(res.body.question.body).toBeDefined();
     expect(res.body.question.detectedLanguage).toBeDefined();
   });
