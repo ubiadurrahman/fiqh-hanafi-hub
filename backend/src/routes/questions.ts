@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { Prisma, QuestionStatus } from "@prisma/client";
-import { z } from "zod";
+import { optional, z } from "zod";
 import { prisma } from "../db";
 import { asyncHandler, HttpError } from "../errors";
 import { requireAuth, requireRole } from "../middleware/auth";
@@ -60,7 +60,8 @@ const answerSchema = z.object({
     .string()
     .trim()
     .min(5, "A reference is required (e.g. Quran 2:43, Sahih Bukhari 1, Hidayah)")
-    .max(500),
+    .max(500)
+    .optional(),
 });
 
 const statusUpdateSchema = z.object({

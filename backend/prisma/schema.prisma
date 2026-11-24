@@ -156,7 +156,7 @@ model Question {
 model Answer {
   id         String   @id @default(cuid())
   body       String
-  reference  String
+  reference  String?
   createdAt  DateTime @default(now())
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)

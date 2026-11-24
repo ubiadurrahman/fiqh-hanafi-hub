@@ -418,8 +418,12 @@ function AnswerForm({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (body.trim().length < 20) errs.body = "Write at least 20 characters";
-    if (reference.trim().length < 5) errs.reference = "A reference is required (e.g. Quran 2:43, Sahih Bukhari 1)";
+
+if (body.trim().length < 20) {
+  errs.body = "Write at least 20 characters";
+}
+
+setErrors(errs);
     setErrors(errs);
     setFormError("");
     if (Object.keys(errs).length) return;
@@ -428,7 +432,7 @@ function AnswerForm({
     try {
       const r = await api.post<{ question: QAQuestion }>(`/questions/${questionId}/answers`, {
         body: body.trim(),
-        reference: reference.trim(),
+        reference: reference.trim() || undefined,
       });
       toast("success", "Your answer was published.");
       onDone(r.question);
@@ -461,9 +465,9 @@ function AnswerForm({
       </Field>
       <Field
         id={`${id}-ref`}
-        label="Authentic reference (required)"
+        label="Authentic reference (optional)"
         error={errors.reference}
-        hint="Quran (surah:ayah), Hadith (collection & number) or a Hanafi text (e.g. Al-Hidayah, Radd al-Muhtar)."
+        hint="Optional: Quran (surah:ayah), Hadith (collection & number), or a Hanafi text (e.g. Al-Hidayah, Radd al-Muhtar)."
       >
         <input
           id={`${id}-ref`}
